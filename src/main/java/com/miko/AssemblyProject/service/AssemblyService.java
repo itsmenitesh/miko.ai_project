@@ -1,5 +1,7 @@
 package com.miko.AssemblyProject.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miko.AssemblyProject.model.Operation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +16,9 @@ import java.util.Map;
 public class AssemblyService {
 
     private final Logger logger = LoggerFactory.getLogger(AssemblyService.class);
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
 
     @Autowired
     private final RedisTemplate<String, Object> redisTemplate;
@@ -99,8 +104,17 @@ public class AssemblyService {
     }
 
     private void saveResultsToRedis() {
-        // Save the registers to Redis
-        redisTemplate.opsForHash().putAll("registers", registers);
-        logger.info("Results saved to Redis.");
+        try {
+            // Save each register separately
+            for (Map.Entry<String, Integer> entry : registers.entrySet()) {
+                String key = entry.getKey();
+                Integer value = entry.getValue();
+                String jsonValue = objectMapper.writeValueAsString(value);
+                redisTemplate.opsForValue().set("register:" + key, jsonValue);
+            }
+            logger.info("Results saved to Redis.");
+        } catch (JsonProcessingException e) {
+            logger.error("Error serializing register values to JSON:", e);
+        }
     }
 }
